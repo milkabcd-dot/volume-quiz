@@ -6,7 +6,7 @@
     <title>בלשי הנפח - חידון חשיפת הפאזל</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f0f4f8;
             margin: 0;
             padding: 20px;
@@ -46,11 +46,10 @@
             justify-content: center;
             box-sizing: border-box;
         }
-        /* אזור הפאזל */
         .puzzle-container {
             position: relative;
-            width: 350px;
-            height: 350px;
+            width: 320px;
+            height: 320px;
             border: 5px solid #2563eb;
             border-radius: 12px;
             overflow: hidden;
@@ -69,7 +68,6 @@
             pointer-events: none;
             z-index: 10;
         }
-        /* רשת 9 קוביות פאזל */
         .grid-overlay {
             position: absolute;
             top: 0;
@@ -90,17 +88,16 @@
             color: white;
             font-weight: bold;
             font-size: 22px;
-            transition: opacity 0.6s ease, transform 0.3s ease;
+            transition: opacity 0.5s ease, transform 0.3s ease;
         }
         .tile.revealed {
             opacity: 0;
             pointer-events: none;
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
-        /* אזור השאלות */
         .quiz-section {
             flex: 1;
-            min-width: 300px;
+            min-width: 280px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -118,7 +115,7 @@
             display: block;
             width: 100%;
             padding: 12px 18px;
-            margin: 10px 0;
+            margin: 8px 0;
             background-color: #f8fafc;
             border: 2px solid #cbd5e1;
             border-radius: 8px;
@@ -131,7 +128,6 @@
         .options button:hover {
             background-color: #e2e8f0;
             border-color: #94a3b8;
-            transform: translateY(-2px);
         }
         .feedback {
             margin-top: 15px;
@@ -140,3 +136,320 @@
             min-height: 25px;
         }
         .success-msg { color: #16a34a; }
+        .error-msg { color: #dc2626; }
+        
+        #finish-screen {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        #finish-screen h2 {
+            color: #16a34a;
+            font-size: 26px;
+        }
+        .restart-btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>בלשי הנפח - חידון חשיפת הפאזל</h1>
+    <p class="subtitle">ענו נכון על השאלות במדעים כדי לחשוף את תמונת המעבדה המסתורית!</p>
+    <div class="creator-credit">פותח ועוצב ע״י מילכה ברקו גרש 🔬</div>
+
+    <div class="container">
+        <div class="puzzle-container">
+            <canvas id="labCanvas" width="700" height="700"></canvas>
+            <canvas id="confettiCanvas" width="700" height="700"></canvas>
+            
+            <div class="grid-overlay" id="gridOverlay">
+                <div class="tile" id="tile-0">1</div>
+                <div class="tile" id="tile-1">2</div>
+                <div class="tile" id="tile-2">3</div>
+                <div class="tile" id="tile-3">4</div>
+                <div class="tile" id="tile-4">5</div>
+                <div class="tile" id="tile-5">6</div>
+                <div class="tile" id="tile-6">7</div>
+                <div class="tile" id="tile-7">8</div>
+                <div class="tile" id="tile-8">9</div>
+            </div>
+        </div>
+
+        <div class="quiz-section">
+            <div id="quiz-container"></div>
+            <div id="finish-screen">
+                <h2>כל הכבוד! חשפתם את כל התמונה! 🎉</h2>
+                <p>הוכחתם שליטה מצוינת בנושא נפח ומדידות!</p>
+                <button class="restart-btn" onclick="restartQuiz()">שחק שוב</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // פונקציות סאונד מוגנות היטב מנפילה
+        function playSound(freq, type, duration) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const audioCtx = new AudioContext();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playCorrectSound() {
+            playSound(523.25, 'sine', 0.12);
+            setTimeout(() => playSound(659.25, 'sine', 0.12), 90);
+        }
+
+        function playWrongSound() {
+            playSound(180, 'sawtooth', 0.20);
+        }
+
+        function playVictorySound() {
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                setTimeout(() => playSound(freq, 'triangle', 0.25), idx * 130);
+            });
+        }
+
+        // אפקט קונפטי
+        let confettiAnimId = null;
+        function triggerConfetti() {
+            try {
+                const canvas = document.getElementById('confettiCanvas');
+                if(!canvas) return;
+                const ctx = canvas.getContext('2d');
+                let particles = [];
+                const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+                
+                for (let i = 0; i < 60; i++) {
+                    particles.push({
+                        x: canvas.width / 2, y: canvas.height / 2,
+                        vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.7) * 10,
+                        size: Math.random() * 8 + 4, color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * 360
+                    });
+                }
+
+                function animate() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    particles.forEach((p) => {
+                        p.x += p.vx; p.y += p.vy; p.vy += 0.25;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate((p.rotation * Math.PI) / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                        ctx.restore();
+                    });
+                    confettiAnimId = requestAnimationFrame(animate);
+                }
+                animate();
+            } catch(e) {}
+        }
+
+        function clearConfetti() {
+            try {
+                if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+                const canvas = document.getElementById('confettiCanvas');
+                if(canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            } catch(e) {}
+        }
+
+        // ציור תמונת מעבדה נקייה
+        function drawCleanLabImage() {
+            const canvas = document.getElementById('labCanvas');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#eef2ff';
+            ctx.fillRect(0, 0, 700, 700);
+            
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(0, 520, 700, 180);
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(0, 500, 700, 20);
+
+            // משורה
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 6;
+            ctx.fillRect(280, 150, 140, 350);
+            ctx.strokeRect(280, 150, 140, 350);
+            
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.6)';
+            ctx.fillRect(286, 250, 128, 244);
+            
+            ctx.beginPath();
+            ctx.ellipse(350, 250, 64, 15, 0, 0, Math.PI);
+            ctx.fillStyle = '#2563eb';
+            ctx.fill();
+
+            ctx.strokeStyle = '#1d4ed8';
+            ctx.lineWidth = 3;
+            for(let y = 180; y < 490; y += 30) {
+                ctx.beginPath();
+                ctx.moveTo(280, y);
+                ctx.lineTo(310, y);
+                ctx.stroke();
+            }
+
+            // כוס כימית
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 5;
+            ctx.fillRect(80, 280, 130, 220);
+            ctx.strokeRect(80, 280, 130, 220);
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+            ctx.fillRect(85, 340, 120, 155);
+
+            // בקבוק ארלנמייר
+            ctx.beginPath();
+            ctx.moveTo(530, 280); ctx.lineTo(570, 280); ctx.lineTo(620, 500); ctx.lineTo(480, 500);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = '#9333ea';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // בועות
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            [{x:330,y:380,r:8}, {x:370,y:310,r:12}, {x:140,y:400,r:10}, {x:540,y:420,r:9}].forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        const questions = [
+            {
+                q: "מהי ההגדרה המדעית לנפח?",
+                options: ["כמות החומר שיש בגוף", "גודל החלל שגוף תופס במרחב", "מידת הכבידה שפועלת על הגוף", "משקל החומר ביחס לנפחו"],
+                correct: 1
+            },
+            {
+                q: "מהן יחידות המידה המקובלות לנפח של נוזל?",
+                options: ["קילוגרם וגרם", "מטר רבוע וסנטימטר רבוע", "מיליליטר (ml) וליטר (L)", "מטר לשנייה"],
+                correct: 2
+            },
+            {
+                q: "באמצעות איזה כלי מעבדה מקובל למדוד נפח של נוזל בדיוק יחסי טוב?",
+                options: ["משורה", "משקל דיגיטלי", "סרגל פלסטיק", "מדחום"],
+                correct: 0
+            },
+            {
+                q: "כאשר מדדים נפח של נוזל במשורה, כיצד יש להסתכל על פני הנוזל (המניסקוס)?",
+                options: ["מלמעלה כלפי מטה בזווית חדה", "מלמטה כלפי מעלה", "בגובה העיניים, בדיוק מול קו הקעירות של הנוזל", "אין חשיבות לזווית ההסתכלות"],
+                correct: 2
+            },
+            {
+                q: "כמה מיליליטר (ml) יש בליטר אחד (L)?",
+                options: ["10 מיליליטר", "100 מיליליטר", "1,000 מיליליטר", "10,000 מיליליטר"],
+                correct: 2
+            },
+            {
+                q: "כיצד ניתן למדוד נפח של גוף מוצק בעל צורה לא סדירה (למשל: אבן קטנה)?",
+                options: ["על ידי שקילה במאזניים", "על ידי טבילה במים במשורה ומדידת עליית מפלס המים", "על ידי מדידת אורך, רוחב וגובה בסרגל", "אי אפשר למדוד נפח של גוף לא סדיר"],
+                correct: 1
+            },
+            {
+                q: "אם נכניס אבן שנפחה 20 סמ\"ק לתוך משורה שיש בה 50 מ\"ל מים, מה יהיה מפלס המים החדש?",
+                options: ["30 מ\"ל", "50 מ\"ל", "70 מ\"ל", "1,000 מ\"ל"],
+                correct: 2
+            },
+            {
+                q: "מה קורה לנפח של חומר במצב צבירה גז כאשר מעבירים אותו מבלון קטן לבלון ענק?",
+                options: ["הנפח גדל ומתמלא בכל חלל הבלון החדש", "הנפח מצטמצם לאפס", "הנפח נשאר קבוע בדיוק כפי שהיה", "הגז הופך לנוזל"],
+                correct: 0
+            },
+            {
+                q: "מדוע, בניגוד לגזים, לנוזלים ולמוצקים יש נפח קבוע ומוגדר?",
+                options: ["כי החלקיקים שלהם צפופים יותר וקשורים זה לזה בכוחות משיכה חזקים יחסית", "כי אין להם כלל חלקיקים", "כי הם נמצאים תמיד בטמפרטורה נמוכה", "כי הם קלים מדי מכדי לזוז"],
+                correct: 0
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+
+        function loadQuestion() {
+            const quizContainer = document.getElementById('quiz-container');
+            const finishScreen = document.getElementById('finish-screen');
+
+            if (currentQuestionIndex >= questions.length) {
+                if(quizContainer) quizContainer.style.display = 'none';
+                if(finishScreen) finishScreen.style.display = 'block';
+                playVictorySound();
+                triggerConfetti();
+                return;
+            }
+
+            const qData = questions[currentQuestionIndex];
+            let html = `
+                <div class="question-box">
+                    <h3>שאלה ${currentQuestionIndex + 1} מתוך ${questions.length}:</h3>
+                    <p>${qData.q}</p>
+                    <div class="options">
+            `;
+
+            qData.options.forEach((opt, index) => {
+                html += `<button onclick="checkAnswer(${index})">${opt}</button>`;
+            });
+
+            html += `</div><div class="feedback" id="feedback"></div></div>`;
+            if(quizContainer) quizContainer.innerHTML = html;
+        }
+
+        function checkAnswer(selectedIndex) {
+            const qData = questions[currentQuestionIndex];
+            const feedbackDiv = document.getElementById('feedback');
+
+            if (selectedIndex === qData.correct) {
+                if(feedbackDiv) feedbackDiv.innerHTML = "<span class='success-msg'>תשובה נכונה! חלק מהפאזל נחשף! 🧩</span>";
+                playCorrectSound();
+                const tile = document.getElementById(`tile-${currentQuestionIndex}`);
+                if(tile) tile.classList.add('revealed');
+                currentQuestionIndex++;
+                setTimeout(() => { loadQuestion(); }, 1200);
+            } else {
+                if(feedbackDiv) feedbackDiv.innerHTML = "<span class='error-msg'>טעות, נסו שוב! ❌</span>";
+                playWrongSound();
+            }
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            clearConfetti();
+            const finishScreen = document.getElementById('finish-screen');
+            const quizContainer = document.getElementById('quiz-container');
+            if(finishScreen) finishScreen.style.display = 'none';
+            if(quizContainer) quizContainer.style.display = 'block';
+            for (let i = 0; i < questions.length; i++) {
+                const tile = document.getElementById(`tile-${i}`);
+                if(tile) tile.classList.remove('revealed');
+            }
+            loadQuestion();
+        }
+
+        // טעינה ישירה ללא תלות באירועים חיצוניים
+        drawCleanLabImage();
+        loadQuestion();
+    </script>
+</body>
+</html>
