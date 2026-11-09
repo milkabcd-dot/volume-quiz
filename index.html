@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בלשי הנפח - חידון חשיפת הפאזל</title>
+    <!-- ספריות קונפטי וצלילים -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #1e3a8a;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        p.subtitle {
+            color: #4b5563;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: row;
+            gap: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 900px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        /* אזור הפאזל */
+        .puzzle-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            border: 5px solid #2563eb;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #e5e7eb;
+            flex-shrink: 0;
+        }
+        canvas#labCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* רשת אריחים 3x3 */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+        }
+        .tile {
+            background-color: #1e293b;
+            border: 2px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 22px;
+            transition: opacity 0.6s ease, transform 0.3s ease;
+        }
+        .tile.revealed {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.1);
+        }
+        /* אזור השאלות */
+        .quiz-section {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .question-box h3 {
+            color: #1d4ed8;
+            margin-top: 0;
+        }
+        .question-box p {
+            font-size: 18px;
+            color: #1f2937;
+            font-weight: bold;
+        }
+        .options button {
+            display: block;
+            width: 100%;
+            padding: 12px 18px;
+            margin: 10px 0;
+            background-color: #f8fafc;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: right;
+            transition: all 0.2s;
+            color: #334155;
+        }
+        .options button:hover {
+            background-color: #e2e8f0;
+            border-color: #94a3b8;
+            transform: translateY(-2px);
+        }
+        .feedback {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 18px;
+            min-height: 25px;
+        }
+        .success-msg { color: #16a34a; }
+        .error-msg { color: #dc2626; }
+        
+        #finish-screen {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        #finish-screen h2 {
+            color: #16a34a;
+            font-size: 28px;
+        }
+        .restart-btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.2s;
+        }
+        .restart-btn:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>בלשי הנפח - חידון חשיפת הפאזל</h1>
+    <p class="subtitle">ענו נכון על השאלות במדעים כדי לחשוף את תמונת המעבדה המסתורית!</p>
+
+    <div class="container">
+        <!-- אזור הפאזל -->
+        <div class="puzzle-container">
+            <canvas id="labCanvas" width="700" height="700"></canvas>
+            
+            <div class="grid-overlay" id="gridOverlay">
+                <div class="tile" id="tile-0">1</div>
+                <div class="tile" id="tile-1">2</div>
+                <div class="tile" id="tile-2">3</div>
+                <div class="tile" id="tile-3">4</div>
+                <div class="tile" id="tile-4">5</div>
+                <div class="tile" id="tile-5">6</div>
+                <div class="tile" id="tile-6">7</div>
