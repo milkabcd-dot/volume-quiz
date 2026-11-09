@@ -69,7 +69,7 @@
             pointer-events: none;
             z-index: 10;
         }
-        /* רשת 9 קוביות */
+        /* רשת 9 קוביות פאזל */
         .grid-overlay {
             position: absolute;
             top: 0;
@@ -140,105 +140,3 @@
             min-height: 25px;
         }
         .success-msg { color: #16a34a; }
-        .error-msg { color: #dc2626; }
-        
-        #finish-screen {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        #finish-screen h2 {
-            color: #16a34a;
-            font-size: 28px;
-        }
-        .restart-btn {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 15px;
-            transition: background 0.2s;
-        }
-        .restart-btn:hover {
-            background-color: #1d4ed8;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>בלשי הנפח - חידון חשיפת הפאזל</h1>
-    <p class="subtitle">ענו נכון על השאלות במדעים כדי לחשוף את תמונת המעבדה המסתורית!</p>
-    <div class="creator-credit">פותח ועוצב ע״י מילכה ברקו גרש 🔬</div>
-
-    <div class="container">
-        <!-- אזור הפאזל והתמונה -->
-        <div class="puzzle-container">
-            <canvas id="labCanvas" width="700" height="700"></canvas>
-            <canvas id="confettiCanvas" width="700" height="700"></canvas>
-            
-            <div class="grid-overlay" id="gridOverlay">
-                <div class="tile" id="tile-0">1</div>
-                <div class="tile" id="tile-1">2</div>
-                <div class="tile" id="tile-2">3</div>
-                <div class="tile" id="tile-3">4</div>
-                <div class="tile" id="tile-4">5</div>
-                <div class="tile" id="tile-5">6</div>
-                <div class="tile" id="tile-6">7</div>
-                <div class="tile" id="tile-7">8</div>
-                <div class="tile" id="tile-8">9</div>
-            </div>
-        </div>
-
-        <!-- אזור השאלות -->
-        <div class="quiz-section">
-            <div id="quiz-container"></div>
-            <div id="finish-screen">
-                <h2>כל הכבוד! חשפתם את כל התמונה! 🎉</h2>
-                <p>הוכחתם שליטה מצוינת בנושא נפח ומדידות!</p>
-                <button class="restart-btn" onclick="restartQuiz()">שחק שוב</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- מערכת צלילים מוגנת ---
-        let audioCtx = null;
-
-        function playSound(freq, type, duration) {
-            try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch(e){}
-        }
-
-        function playCorrectSound() {
-            playSound(523.25, 'sine', 0.12);
-            setTimeout(() => playSound(659.25, 'sine', 0.12), 90);
-            setTimeout(() => playSound(783.99, 'sine', 0.20), 180);
-        }
-
-        function playWrongSound() {
-            playSound(180, 'sawtooth', 0.20);
-        }
-
-        function playVictorySound() {
-            const notes = [523.25, 659.25, 783.99, 1046.50];
-            notes.forEach((freq, idx) => {
-                setTimeout(() => play
