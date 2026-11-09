@@ -204,11 +204,14 @@
     </div>
 
     <script>
-        // --- מערכת צלילים עצמאית (Web Audio API) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // --- מערכת צלילים מוגנת ---
+        let audioCtx = null;
 
         function playSound(freq, type, duration) {
             try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume();
                 }
@@ -216,7 +219,7 @@
                 const gain = audioCtx.createGain();
                 osc.type = type;
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -226,17 +229,16 @@
         }
 
         function playCorrectSound() {
-            playSound(523.25, 'sine', 0.15); // C5
-            setTimeout(() => playSound(659.25, 'sine', 0.15), 100); // E5
-            setTimeout(() => playSound(783.99, 'sine', 0.25), 200); // G5
+            playSound(523.25, 'sine', 0.12);
+            setTimeout(() => playSound(659.25, 'sine', 0.12), 90);
+            setTimeout(() => playSound(783.99, 'sine', 0.20), 180);
         }
 
         function playWrongSound() {
-            playSound(180, 'sawtooth', 0.25);
+            playSound(180, 'sawtooth', 0.20);
         }
 
         function playVictorySound() {
             const notes = [523.25, 659.25, 783.99, 1046.50];
             notes.forEach((freq, idx) => {
-                setTimeout(() => playSound(freq, 'triangle', 0.3), idx * 150);
-            });
+                setTimeout(() => play
